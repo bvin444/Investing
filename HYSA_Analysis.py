@@ -1,8 +1,4 @@
 # Code to analyze HYSAs
-# assuming daily compounding
-
-# TODO: add in functionality to allow user to choose between firist of the month and last of the month.
-# TODO: add in plotting functionality.
 
 import PySimpleGUI as sg
 from typing import ClassVar
@@ -18,9 +14,10 @@ class HYSAs:
     # Class Variables
     contribution_Dictionary : ClassVar[Dict] = {'daily': 365, 'monthly': 12, 'annually': 1}
     contribution_Time : ClassVar[Dict] = {'Beginning': [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335], 'End': [31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]}
-    plot_Dictionary : ClassVar[Dict] = ['daily interest', 'daily balance']
+    plot_Dictionary : ClassVar[Dict] = ['daily interest', 'daily principal', 'stored vs. current (principal)', 'stored vs. current (interest)']
     x_Frame : ClassVar[int] = 750
     y_Frame : ClassVar[int] = 240
+    flag : ClassVar[int] = 0
 
     def __init__(self):
 
@@ -29,32 +26,41 @@ class HYSAs:
     def main(self):
 
         self.window = self.create_main_window()
+
         while True:
             event, values = self.window.read()
             if event in (sg.WIN_CLOSED, "EXIT", "EXIT_1"): break
+
             elif event == "SUBMIT":
+
                 if self.input_Validation("PRINCIPAL", "APY", "CONTRIBUTION_AMOUNT", "YEARS", values = values): continue # break out of current iteration, and begin anew
                 self.Calculation(values)
-                self.window["OUTPUT_TOTAL"].update(f"{round((self.Total_OUTPUT), 2)}")
-                self.window["FIRST_MONTH"].update(f"{round((sum(self.day_Array[:31])), 2)}")
-                self.window["LAST_MONTH"].update(f"{round((sum(self.day_Array[-31:])), 2)}")
-                self.window["DIFFERENCE_MONTH"].update(f"{round((sum(self.day_Array[-31:]) - sum(self.day_Array[:31])), 2)}")
-                self.window["FIRST_DAY"].update(f"{round((self.day_Array[0]), 2)}")
-                self.window["LAST_DAY"].update(f"{round((self.day_Array[len(self.day_Array) - 1]), 2)}")
-                self.window["DIFFERENCE_DAY"].update(f"{round((self.day_Array[len(self.day_Array) - 1]) - (self.day_Array[0]), 2)}")
-                self.window["BALANCE_TOTAL"].update(f"{round(self.Total_Balance, 2)}")
-                self.window["PERSONAL_CONTRIBUTIONS_TOTAL"].update(f"{round(self.Index * self.Numerical_Dictionary["CONTRIBUTION_AMOUNT"], 2)}")
+                
             elif event == "PLOT":
+
                 if self.input_Validation("PRINCIPAL", "APY", "CONTRIBUTION_AMOUNT", "YEARS", values = values): continue # break out of current iteration, and begin anew
                 self.plot(values)
+
             elif event == "RESET":
+
                 self.Reset()
+
             elif event == "RESET_1":
+
                 self.Reset_1()
+
+            elif event == "STORE":
+
+                if self.input_Validation("PRINCIPAL", "APY", "CONTRIBUTION_AMOUNT", "YEARS", values = values): continue # break out of current iteration, and begin anew
+                if HYSAs.flag == 1:
+                    sg.popup("You already have data stored. You can only hold 1.")
+                    continue
+                self.store()
+
         self.window.close()
 
     def create_main_window(self):
-
+        sg.theme("DarkBlue3")
         HYSA_Frame = sg.Frame("HYSA Analyis", 
             [
                 [sg.Text("Please enter your principal: "), sg.Input("", key = 'PRINCIPAL')],
@@ -69,8 +75,8 @@ class HYSAs:
                 sg.Input("", size = (10, 10), key = "LAST_MONTH"), sg.Text("Difference: "), sg.Input("", size = (10, 10), key = "DIFFERENCE_MONTH")],
                 [sg.Text("Your first day you made: "), sg.Input("", size = (10, 10), key = "FIRST_DAY"), sg.Text("Your last day you made: "), 
                 sg.Input("", size = (10, 10), key = "LAST_DAY"), sg.Text("Difference: "), sg.Input("", size = (10, 10), key = "DIFFERENCE_DAY")],
-                [sg.Button("Submit", key = "SUBMIT"), sg.Button("Reset", key = "RESET")],
-                [sg.Button("Exit", key = "EXIT")]
+                [sg.Button("Submit", key = "SUBMIT"), sg.Button("Store_data", button_color = "#67758A", key = "STORE")],
+                [sg.Button("Reset", key = "RESET"), sg.Button("Exit", key = "EXIT")]
             ], size = (HYSAs.x_Frame, HYSAs.y_Frame))
         
         Plot_Frame = sg.Frame("Plot",
@@ -83,6 +89,7 @@ class HYSAs:
                 [sg.Button("Reset", key = "RESET_1"), sg.Button("Exit", key = "EXIT_1")]
 
             ], size = (HYSAs.x_Frame, HYSAs.y_Frame))
+        
         layout = [[HYSA_Frame], [Plot_Frame]]
         window = sg.Window("HYSA Analysis", layout, resizable = True)
         return window
@@ -123,6 +130,19 @@ class HYSAs:
             self.Prin_Array.append(Prin)
         self.Total_Balance = Prin
         self.Total_OUTPUT = round(sum(self.day_Array), 2)
+        self.update_Frame_1()
+
+    def update_Frame_1(self):
+
+        self.window["OUTPUT_TOTAL"].update(f"{round((self.Total_OUTPUT), 2)}")
+        self.window["FIRST_MONTH"].update(f"{round((sum(self.day_Array[:31])), 2)}")
+        self.window["LAST_MONTH"].update(f"{round((sum(self.day_Array[-31:])), 2)}")
+        self.window["DIFFERENCE_MONTH"].update(f"{round((sum(self.day_Array[-31:]) - sum(self.day_Array[:31])), 2)}")
+        self.window["FIRST_DAY"].update(f"{round((self.day_Array[0]), 2)}")
+        self.window["LAST_DAY"].update(f"{round((self.day_Array[len(self.day_Array) - 1]), 2)}")
+        self.window["DIFFERENCE_DAY"].update(f"{round((self.day_Array[len(self.day_Array) - 1]) - (self.day_Array[0]), 2)}")
+        self.window["BALANCE_TOTAL"].update(f"{round(self.Total_Balance, 2)}")
+        self.window["PERSONAL_CONTRIBUTIONS_TOTAL"].update(f"{round(self.Index * self.Numerical_Dictionary["CONTRIBUTION_AMOUNT"], 2)}")
 
     def plot(self, values):
 
@@ -130,8 +150,16 @@ class HYSAs:
         fig, ax = plt.subplots() 
         if values["Y-AXIS_DATA"] == 'daily interest':
             ax.plot(x, self.day_Array)
-        elif values["Y-AXIS_DATA"] == 'daily balance':
+        elif values["Y-AXIS_DATA"] == 'daily principal':
             ax.plot(x, self.Prin_Array)
+        elif values["Y-AXIS_DATA"] == 'stored vs. current (principal)':
+            ax.plot(x, self.Prin_Array)
+            ax.plot(x, self.stored_Principal)
+            ax.legend()
+        elif values["Y-AXIS_DATA"] == 'stored vs. current (interest)':
+            ax.plot(x, self.day_Array)
+            ax.plot(x, self.stored_Interest)
+            ax.legend()
         else:
             sg.popup("Please select data to plot")
             return
@@ -140,6 +168,13 @@ class HYSAs:
         ax.set_title(f"{values["TITLE"]}")
         ax.grid()
         fig.canvas.manager.show()
+    
+    def store(self):
+
+        self.stored_Interest = self.day_Array
+        self.stored_Principal = self.Prin_Array
+        self.window["STORE"].update(button_color = "green")
+        HYSAs.flag = 1
 
     def input_Validation(self, *args, values):
 
@@ -156,26 +191,24 @@ class HYSAs:
         return False
     
     def Reset(self):
+
+        field_Names = [
+            "OUTPUT_TOTAL", "FIRST_MONTH", "LAST_MONTH", "DIFFERENCE_MONTH", "PRINCIPAL", "APY", "YEARS", "CONTRIBUTION", 
+            "CONTRIBUTION_AMOUNT", "FIRST_DAY", "LAST_DAY", "DIFFERENCE_DAY", "BALANCE_TOTAL", "PERSONAL_CONTRIBUTIONS_TOTAL"
+        ]
+
+        for field in field_Names:
+            self.window[field].update("")
         
-        self.window["OUTPUT_TOTAL"].update("")
-        self.window["FIRST_MONTH"].update("")
-        self.window["LAST_MONTH"].update("")
-        self.window["DIFFERENCE_MONTH"].update("")
-        self.window["PRINCIPAL"].update("")
-        self.window["APY"].update("")
-        self.window["YEARS"].update("")
-        self.window["CONTRIBUTION"].update("")
-        self.window["CONTRIBUTION_AMOUNT"].update("")
-        self.window["FIRST_DAY"].update("")
-        self.window["LAST_DAY"].update("")
-        self.window["DIFFERENCE_DAY"].update("")
-        self.window["BALANCE_TOTAL"].update("")
-        self.window["PERSONAL_CONTRIBUTIONS_TOTAL"].update("")
+        HYSAs.flag = 0
+        self.window["STORE"].update(button_color = "#67758A")
+
+
     
     def Reset_1(self):
-        self.window["X-AXIS"].update("")
-        self.window["Y-AXIS"].update("")
-        self.window["TITLE"].update("")
+
+        for field in ("X-AXIS", "Y-AXIS", "TITLE"):
+            self.window[field].update("")
 
 if __name__ == "__main__":
     Executable = HYSAs()
