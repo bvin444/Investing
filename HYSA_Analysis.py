@@ -15,9 +15,9 @@ class HYSAs:
     contribution_Dictionary : ClassVar[Dict] = {'daily': 365, 'monthly': 12, 'annually': 1}
     contribution_Time : ClassVar[Dict] = {'Beginning': [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335], 'End': [31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]}
     plot_Dictionary : ClassVar[Dict] = ['daily interest', 'daily principal', 'stored vs. current (principal)', 'stored vs. current (interest)']
+    flag : ClassVar[int] = 0
     x_Frame : ClassVar[int] = 750
     y_Frame : ClassVar[int] = 240
-    flag : ClassVar[int] = 0
 
     def __init__(self):
 
@@ -38,7 +38,14 @@ class HYSAs:
                 
             elif event == "PLOT":
 
-                if self.input_Validation("PRINCIPAL", "APY", "CONTRIBUTION_AMOUNT", "YEARS", values = values): continue # break out of current iteration, and begin anew
+                if values["Y-AXIS_DATA"] == '':
+                    sg.popup("No data selected for plotting")
+                    continue # break out of current iteration, and begin anew
+                try:
+                    self.day_Array
+                except:
+                    sg.popup("No data available for plotting")
+                    continue
                 self.plot(values)
 
             elif event == "RESET":
@@ -55,7 +62,7 @@ class HYSAs:
                 if HYSAs.flag == 1:
                     sg.popup("You already have data stored. You can only hold 1.")
                     continue
-                self.store()
+                self.store(values)
 
         self.window.close()
 
@@ -149,16 +156,28 @@ class HYSAs:
         x = np.linspace(1, (int(values["YEARS"]) * 365), (int(values["YEARS"]) * 365))
         fig, ax = plt.subplots() 
         if values["Y-AXIS_DATA"] == 'daily interest':
-            ax.plot(x, self.day_Array)
+            ax.plot(x, self.day_Array, label = f"APY: {values["APY"]}")
         elif values["Y-AXIS_DATA"] == 'daily principal':
-            ax.plot(x, self.Prin_Array)
+            ax.plot(x, self.Prin_Array, label =  f"APY: {values["APY"]}")
         elif values["Y-AXIS_DATA"] == 'stored vs. current (principal)':
-            ax.plot(x, self.Prin_Array)
-            ax.plot(x, self.stored_Principal)
+
+            try:
+                self.stored_Principal
+            except:
+                sg.popup("You have not stored any comparison data.")
+                return
+            
+            ax.plot(x, self.Prin_Array , label = f"APY: {values["APY"]}")
+            ax.plot(x, self.stored_Principal, label = f"APY: {self.stored_APY}")
             ax.legend()
         elif values["Y-AXIS_DATA"] == 'stored vs. current (interest)':
-            ax.plot(x, self.day_Array)
-            ax.plot(x, self.stored_Interest)
+            try:
+                self.stored_Interest
+            except:
+                sg.popup("You have not stored any comparison data.")
+                return
+            ax.plot(x, self.day_Array, label = f"APY: {values["APY"]}")
+            ax.plot(x, self.stored_Interest, label = f"APY: {self.stored_APY}")
             ax.legend()
         else:
             sg.popup("Please select data to plot")
@@ -169,12 +188,13 @@ class HYSAs:
         ax.grid()
         fig.canvas.manager.show()
     
-    def store(self):
+    def store(self, values):
 
+        HYSAs.flag = 1
         self.stored_Interest = self.day_Array
         self.stored_Principal = self.Prin_Array
+        self.stored_APY = values["APY"]
         self.window["STORE"].update(button_color = "green")
-        HYSAs.flag = 1
 
     def input_Validation(self, *args, values):
 
@@ -200,14 +220,15 @@ class HYSAs:
         for field in field_Names:
             self.window[field].update("")
         
-        HYSAs.flag = 0
+        self.stored_Interest = None
+        self.stored_Principal = None
         self.window["STORE"].update(button_color = "#67758A")
+        self.window["CONTRIBUTION_TIME"].update('Beginning')
 
 
-    
     def Reset_1(self):
 
-        for field in ("X-AXIS", "Y-AXIS", "TITLE"):
+        for field in ("X-AXIS", "Y-AXIS", "TITLE", "Y-AXIS_DATA"):
             self.window[field].update("")
 
 if __name__ == "__main__":
